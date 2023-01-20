@@ -32,6 +32,30 @@ class Users(db.Model):
     def __repr__(self):
         return '<Name %r>' % self.name
 
+# Update database record
+@app.route('/delete/<int:id>', methods=['GET', 'POST'])
+def delete(id):
+    user_to_delete = Users.query.get_or_404(id)
+    name = None
+    form = UserForm()
+
+    try:
+        db.session.delete(user_to_delete)
+        db.session.commit()
+        flash("User Deleted Successfully!")
+
+        our_users = Users.query .order_by(Users.date_added)
+        return render_template("add_user.html",
+            form=form,
+            name=name,
+            our_users=our_users)
+
+    except:
+        flash("Whoops! There was a problem deleting the user.")
+        return render_template("add_user.html",
+            form=form,
+            name=name,
+            our_users=our_users)
 
 # Create User Form Class
 class UserForm(FlaskForm):
@@ -64,7 +88,8 @@ def update(id):
     else:
         return render_template("update.html",
                 form=form,
-                name_to_update=name_to_update)
+                name_to_update=name_to_update,
+                id = id)
 
 
 
