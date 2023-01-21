@@ -3,11 +3,12 @@ from email.policy import default
 from urllib import request
 from flask import Flask, render_template, flash, request
 from flask_wtf import FlaskForm
-from wtforms import StringField, SubmitField
-from wtforms.validators import DataRequired
+from wtforms import StringField, SubmitField, PasswordField, BooleanField, ValidationError
+from wtforms.validators import DataRequired, EqualTo, Length
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from datetime import datetime
+from werkzeug.security import generate_password_hash, check_password_hash
 
 # Create a Flask Instance
 app = Flask(__name__)
@@ -27,6 +28,19 @@ class Users(db.Model):
     email = db.Column(db.String(120), nullable=False, unique=True)
     favorite_color = db.Column(db.String(120))
     date_added = db.Column(db.DateTime, default=datetime.utcnow)
+    #Password stuff
+    password_hash = db.Column(db.String(128))
+
+    @property
+    def password(self):
+        raise AttributeError('Password is not a readable attribute!')
+
+    @password.setter
+    def password(self, password):
+        self.password_hash = generate_password_hash(password)
+    
+    def verify_password(self, password):
+        return check_password_hash(self.password_hash, password)
 
     # Create A String
     def __repr__(self):
@@ -61,6 +75,8 @@ def delete(id):
 class UserForm(FlaskForm):
     name = StringField("Name", validators=[DataRequired()])
     email = StringField("Email", validators=[DataRequired()])
+    password_hash = PasswordField('Password', validators=[DataRequired(), EqualTo("password_hash2", message="Passwords must match")])
+    password_hash2 = PasswordField('Confirm Password', validators=[DataRequired()])
     favorite_color = StringField("Favorite Color")
     submit = SubmitField("Submit")
 
@@ -96,6 +112,13 @@ def update(id):
 # Create a Form Class
 class NamerForm(FlaskForm):
     name = StringField("What's Your Name", validators=[DataRequired()])
+    submit = SubmitField("Submit")
+
+
+# Create a Password Form Class
+class PasswordForm(FlaskForm):
+    email = StringField("What's Your Email", validators=[DataRequired()])
+    password_hash = PasswordField("What's Your Password", validators=[DataRequired()])
     submit = SubmitField("Submit")
 
 # Create index route decorator
@@ -141,12 +164,18 @@ def add_user():
     if form.validate_on_submit():
         user = Users.query.filter_by(email=form.email.data).first()
         if user is None:
-            user = Users(name=form.name.data, email=form.email.data, favorite_color=form.favorite_color.data)
+            # Hash Password
+            hashed_pw=generate_password_hash(form.password_hash.data, "sha256")
+            user = Users(name=form.name.data, 
+            email=form.email.data, 
+            favorite_color=form.favorite_color.data,
+            password_hash=hashed_pw)
             db.session.add(user)
             db.session.commit()
         name = form.name.data
         form.name.data = ''
         form.email.data = ''
+        form.password_hash.data = ''
         form.favorite_color.data = ''
         flash("User Successfully Added")
     our_users = Users.query .order_by(Users.date_added)
@@ -179,3 +208,36 @@ def page_not_found(e):
     return render_template("500.html"), 404
 
 
+
+# Test PW form page
+@app.route('/test_pw', methods=['GET', 'POST'])
+
+def test_pw():
+    email = None
+    password = None
+    pw_to_check = None
+    user_to_check = None
+    passed = None
+    form = PasswordForm()
+
+    #validate the form
+    if form.validate_on_submit():
+        email = form.email.data
+        password = form.password_hash.data
+
+        form.email.data = ''
+        form.password_hash.data = ''
+
+        #Looked up user by email address
+        pw_to_check = Users.query.filter_by(email=email).first()
+
+        #Check the hashed password
+        passed = check_password_hash(pw_to_check.password_hash, password)
+
+        #flash("Submitted Successfully")
+    return render_template("test_pw.html",
+        email=email,
+        password=password,
+        pw_to_check=pw_to_check,
+        passed = passed,
+        form=form)
