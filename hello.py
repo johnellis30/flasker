@@ -7,8 +7,9 @@ from wtforms import StringField, SubmitField, PasswordField, BooleanField, Valid
 from wtforms.validators import DataRequired, EqualTo, Length
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-from datetime import datetime
+from datetime import datetime, date
 from werkzeug.security import generate_password_hash, check_password_hash
+from wtforms.widgets import TextArea
 
 # Create a Flask Instance
 app = Flask(__name__)
@@ -21,7 +22,56 @@ db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
 
-# Create Model
+# Create Blog Post Model
+class Blogs(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(255))
+    content = db.Column(db.Text)
+    author = db.Column(db.String(255))
+    date_posted = db.Column(db.DateTime, default=datetime.utcnow)
+    slug = db.Column(db.String(255))
+
+# Create a Blog form
+class BlogForm(FlaskForm):
+    title = StringField("Title", validators=[DataRequired()])
+    content = StringField("Content", validators=[DataRequired()], widget=TextArea()) 
+    author = StringField("Author", validators=[DataRequired()])  
+    slug = StringField("Slug", validators=[DataRequired()]) 
+    submit = SubmitField("Submit") 
+
+#Add Post Page
+@app.route('/add-blog', methods=['GET', 'POST'])
+def add_blog():
+    form = BlogForm()
+    
+    if form.validate_on_submit():
+        blog = Blogs(title=form.title.data,
+            content=form.content.data,
+            author=form.author.data,
+            slug=form.slug.data)
+
+        #clear the form    
+        form.title.data = ''
+        form.content.data = ''
+        form.author.data = ''
+        form.slug.data = ''
+
+        #add form data to db
+        db.session.add(blog)
+        db.session.commit()
+
+        flash("Congrats, you've submitted a Blog Post!")
+
+    # Redirect to the webpage
+    return render_template("add_blog.html", form=form)
+        
+
+# JSON Example
+@app.route('/date')
+def get_current_date():
+    return {"Date": date.today()}
+
+# Create Users Model
 class Users(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), nullable=False)
@@ -170,6 +220,7 @@ def add_user():
             email=form.email.data, 
             favorite_color=form.favorite_color.data,
             password_hash=hashed_pw)
+            
             db.session.add(user)
             db.session.commit()
         name = form.name.data
