@@ -39,7 +39,21 @@ class BlogForm(FlaskForm):
     slug = StringField("Slug", validators=[DataRequired()]) 
     submit = SubmitField("Submit") 
 
-#Add Post Page
+#Add list of blog posts
+@app.route('/blogs')
+def blogs():
+    #grab all of the blog posts
+    blogs = Blogs.query.order_by(Blogs.date_posted)
+    return render_template("blogs.html", blogs=blogs)
+
+#Add list of blog posts
+@app.route('/blogs/<int:id>')
+def blog(id):
+    #grab all of the blog posts
+    blog = Blogs.query.get_or_404(id)
+    return render_template("blog.html", blog=blog)
+
+#Add Blog Post Page
 @app.route('/add-blog', methods=['GET', 'POST'])
 def add_blog():
     form = BlogForm()
