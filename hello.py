@@ -1,7 +1,7 @@
 
 from email.policy import default
 from urllib import request
-from flask import Flask, render_template, flash, request
+from flask import Flask, render_template, flash, request, redirect, url_for
 from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField, PasswordField, BooleanField, ValidationError
 from wtforms.validators import DataRequired, EqualTo, Length
@@ -78,7 +78,59 @@ def add_blog():
 
     # Redirect to the webpage
     return render_template("add_blog.html", form=form)
+
+
+#Edit blog posts
+@app.route('/blogs/edit/<int:id>', methods=['GET', 'POST'])
+def edit_blog(id):
+    #grab all of the blog posts
+    blog = Blogs.query.get_or_404(id)
+    form = BlogForm()
+    if form.validate_on_submit():
+        blog.title = form.title.data
+        blog.author = form.author.data
+        blog.slug = form.slug.data
+        blog.content = form.content.data
+        # Update Database
+        db.session.add(blog)
+        db.session.commit()
+        flash("Blog has been updated")
+        return redirect(url_for('blog', id=blog.id))
+
+    form.title.data = blog.title
+    form.author.data = blog.author
+    form.slug.data = blog.slug
+    form.content.data = blog.content
+
+    return render_template('edit_blog.html', form=form)
+
+    form.title.data = blog.title
+    form.author.data = blog.author
+    form.slug.data = blog.slug
+    form.content.data = blog.content
+
+    return render_template('edit_blog.html', form=form)
         
+#Delete blog posts
+@app.route('/blogs/delete/<int:id>')
+def delete_blog(id):
+    #grab all of the blog posts
+    blog_to_delete = Blogs.query.get_or_404(id)
+    try:
+        # Update Database
+        db.session.delete(blog_to_delete)
+        db.session.commit()
+        flash("Blog has been deleted successfully!")
+        # grab blogs
+        blogs = Blogs.query.order_by(Blogs.date_posted)
+        return render_template("blogs.html", blogs=blogs)
+    except:
+        #Return an error message
+        flash("Whoops, there was a problem deleting the Blog!")
+        # grab blogs
+        blogs = Blogs.query.order_by(Blogs.date_posted)
+        return render_template("blogs.html", blogs=blogs)
+
 
 # JSON Example
 @app.route('/date')
