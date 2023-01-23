@@ -135,6 +135,7 @@ def add_blog():
 
 #Edit blog posts
 @app.route('/blogs/edit/<int:id>', methods=['GET', 'POST'])
+@login_required
 def edit_blog(id):
     #grab all of the blog posts
     blog = Blogs.query.get_or_404(id)
@@ -261,22 +262,26 @@ def update(id):
         name_to_update.name = request.form['name']
         name_to_update.email = request.form['email']
         name_to_update.favorite_color = request.form['favorite_color']
+        name_to_update.username = request.form['username']
+
         try:
             db.session.commit()
             flash("User Updated Succesfully!")
             return render_template("update.html",
                 form=form,
-                name_to_update=name_to_update)
+                name_to_update=name_to_update,
+                id=id)
         except:
             flash("Error! Try Again")
             return render_template("update.html",
                 form=form,
-                name_to_update=name_to_update)
+                name_to_update=name_to_update,
+                id=id)
     else:
         return render_template("update.html",
                 form=form,
                 name_to_update=name_to_update,
-                id = id)
+                id=id)
 
 
 
