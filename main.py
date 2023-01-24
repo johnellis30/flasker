@@ -55,6 +55,19 @@ def index():
         favorite_pizza=favorite_pizza)
 
 
+# Create admin route decorator
+@app.route('/admin')
+@login_required
+def admin():
+    id = current_user.id 
+    if id == 13:
+            return render_template("admin.html")
+        
+    else:
+        flash("You do not have administrative access.")
+        return redirect(url_for('dashboard'))
+
+
 #Create Search Function
 @app.route('/search', methods=["POST"])
 def search():
@@ -298,6 +311,7 @@ def update(id):
         name_to_update.email = request.form['email']
         name_to_update.favorite_color = request.form['favorite_color']
         name_to_update.username = request.form['username']
+        name_to_update.about_author = request.form['about_author']
 
         try:
             db.session.commit()
@@ -401,7 +415,10 @@ class Users(db.Model, UserMixin):
     name = db.Column(db.String(200), nullable=False)
     email = db.Column(db.String(120), nullable=False, unique=True)
     favorite_color = db.Column(db.String(120))
+    about_author = db.Column(db.Text(500), nullable=True)
     date_added = db.Column(db.DateTime, default=datetime.utcnow)
+    admin = db.Column(db.Boolean, default=False, nullable=False)
+    #Relationship to blog posts
     blogs = db.relationship('Blogs', backref='posting_user')
     #Password stuff
     password_hash = db.Column(db.String(128))
