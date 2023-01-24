@@ -11,7 +11,8 @@
 {% endfor %}
 
 <br/>
-
+<h2>Edit Post...</h2>
+<br/>
 
 <div class="shadow p-3 mb-5 bg-body rounded">
 
@@ -20,10 +21,6 @@
 
         {{ form.title.label(class="form-label") }}
         {{ form.title(class="form-control") }}
-        <br/>
-
-        {{ form.author.label(class="form-label") }}
-        {{ form.author(class="form-control") }}
         <br/>
 
         {{ form.slug.label(class="form-label") }}
@@ -37,6 +34,8 @@
         {{ form.submit(class="btn btn-secondary") }}
 
     </form>
+    {{ ckeditor.load() }}
+    {{ ckeditor.config(name='content') }}
 </div>
 <br/>
     <a href="{{ url_for('blogs') }}" class="btn btn-outline-secondary btn-sm">All Blogs</a>

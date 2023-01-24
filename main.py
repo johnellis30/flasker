@@ -7,10 +7,13 @@ from flask_migrate import Migrate
 from datetime import datetime, date
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin, login_user, LoginManager, login_required, logout_user, current_user
-from webforms import LoginForm, BlogForm, UserForm, PasswordForm, NamerForm
+from webforms import LoginForm, BlogForm, UserForm, PasswordForm, NamerForm, SearchForm
+from flask_ckeditor import CKEditor
 
 # Create a Flask Instance
 app = Flask(__name__)
+#Add rich text editor to the app
+ckeditor = CKEditor(app)
 # Add Database
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:FOotball30!@localhost/users'
 # Secret Key
@@ -30,6 +33,12 @@ def load_user(user_id):
     return Users.query.get(int(user_id))
 
 
+# Pass stuff to NavBar
+@app.context_processor
+def base():
+    form = SearchForm()
+    return dict(form=form)
+
 ## Routes 
 
 # Create index route decorator
@@ -44,6 +53,24 @@ def index():
         first_name=first_name, 
         stuff=stuff,
         favorite_pizza=favorite_pizza)
+
+
+#Create Search Function
+@app.route('/search', methods=["POST"])
+def search():
+    form = SearchForm()
+    blogs = Blogs.query
+    if form.validate_on_submit():
+        #Get data from submitted search
+        blog.searched = form.searched.data
+        #Query the database
+        blogs = blogs.filter(Blogs.content.like('%' + blog.searched + '%'))
+        blogs = blogs.order_by(Blogs.title).all()
+
+        return render_template("search.html", 
+        form=form, 
+        searched=blog.searched,
+        blogs=blogs)
 
 
 # JSON Example
@@ -149,15 +176,17 @@ def add_blog():
     form = BlogForm()
     
     if form.validate_on_submit():
-        blog = Blogs(title=form.title.data,
+        posting_user = current_user.id
+        blog = Blogs(
+            title=form.title.data,
             content=form.content.data,
-            author=form.author.data,
-            slug=form.slug.data)
+            user_id = posting_user,
+            slug=form.slug.data
+            )
 
         #clear the form    
         form.title.data = ''
         form.content.data = ''
-        form.author.data = ''
         form.slug.data = ''
 
         #add form data to db
@@ -179,7 +208,6 @@ def edit_blog(id):
     form = BlogForm()
     if form.validate_on_submit():
         blog.title = form.title.data
-        blog.author = form.author.data
         blog.slug = form.slug.data
         blog.content = form.content.data
         # Update Database
@@ -187,37 +215,44 @@ def edit_blog(id):
         db.session.commit()
         flash("Blog has been updated")
         return redirect(url_for('blog', id=blog.id))
+    
+    if current_user.id == blog.user_id:
+        form.title.data = blog.title
+        form.slug.data = blog.slug
+        form.content.data = blog.content
 
-    form.title.data = blog.title
-    form.author.data = blog.author
-    form.slug.data = blog.slug
-    form.content.data = blog.content
+        return render_template('edit_blog.html', form=form)
+    
+    else:
+        flash("You are not authorized to edit this post!")
+        blogs = Blogs.query.order_by(Blogs.date_posted)
+        return render_template("blogs.html", blogs=blogs)
 
-    return render_template('edit_blog.html', form=form)
-
-    form.title.data = blog.title
-    form.author.data = blog.author
-    form.slug.data = blog.slug
-    form.content.data = blog.content
-
-    return render_template('edit_blog.html', form=form)
         
 #Delete blog posts
 @ app.route('/blogs/delete/<int:id>')
+@login_required
 def delete_blog(id):
     #grab all of the blog posts
     blog_to_delete = Blogs.query.get_or_404(id)
-    try:
-        # Update Database
-        db.session.delete(blog_to_delete)
-        db.session.commit()
-        flash("Blog has been deleted successfully!")
-        # grab blogs
-        blogs = Blogs.query.order_by(Blogs.date_posted)
-        return render_template("blogs.html", blogs=blogs)
-    except:
-        #Return an error message
-        flash("Whoops, there was a problem deleting the Blog!")
+    id = current_user.id
+    if id == blog_to_delete.posting_user.id:
+        try:
+            # Update Database
+            db.session.delete(blog_to_delete)
+            db.session.commit()
+            flash("Blog has been deleted successfully!")
+            # grab blogs
+            blogs = Blogs.query.order_by(Blogs.date_posted)
+            return render_template("blogs.html", blogs=blogs)
+        except:
+            #Return an error message
+            flash("Whoops, there was a problem deleting the Blog!")
+            # grab blogs
+            blogs = Blogs.query.order_by(Blogs.date_posted)
+            return render_template("blogs.html", blogs=blogs)
+    else:
+        flash("You are not authorized to delete that post!")
         # grab blogs
         blogs = Blogs.query.order_by(Blogs.date_posted)
         return render_template("blogs.html", blogs=blogs)
@@ -254,6 +289,7 @@ def delete(id):
 
 # Update User record
 @app.route('/update/<int:id>', methods=['GET', 'POST'])
+@login_required
 def update(id):
     form = UserForm()
     name_to_update = Users.query.get_or_404(id)
@@ -352,9 +388,10 @@ class Blogs(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(255))
     content = db.Column(db.Text)
-    author = db.Column(db.String(255))
     date_posted = db.Column(db.DateTime, default=datetime.utcnow)
     slug = db.Column(db.String(255))
+    # Foreign Key to link users (refers to PK in users)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
 
 
 # Create Users Model
@@ -365,6 +402,7 @@ class Users(db.Model, UserMixin):
     email = db.Column(db.String(120), nullable=False, unique=True)
     favorite_color = db.Column(db.String(120))
     date_added = db.Column(db.DateTime, default=datetime.utcnow)
+    blogs = db.relationship('Blogs', backref='posting_user')
     #Password stuff
     password_hash = db.Column(db.String(128))
 

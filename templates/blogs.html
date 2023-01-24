@@ -16,14 +16,14 @@
 {% for blog in blogs %}
 <div class="shadow p-3 mb-5 bg-body rounded" >
 
-    <h2>{{ blog.title }}</h2>
-    <small>By: {{ blog.author }}<br/>
+    <h2><a href="{{ url_for('blog', id=blog.id) }}" class="link-secondary">{{ blog.title }}</a></h2>
+    <small>By: {{ blog.posting_user.name }}<br/>
     {{ blog.date_posted  }} </small><br/><br/>
-    {{ blog.content }}<br/>
+    {{ blog.content|safe }}<br/>
     <br/>
     <a href="{{ url_for('blog', id=blog.id) }}" class="btn btn-outline-secondary btn-sm">View Blog</a>
     
-    {% if current_user.is_authenticated %}
+    {% if current_user.id == blog.user_id %}
     <a href="{{ url_for('edit_blog', id=blog.id) }}" class="btn btn-outline-secondary btn-sm">Edit Blog</a>
     <a href="{{ url_for('delete_blog', id=blog.id) }}" class="btn btn-outline-danger btn-sm">Delete Blog</a>
     {% endif %}

@@ -10,25 +10,28 @@
 
 {% endfor %}
 
-<h1>{{ blog.title }}</h1>
+<h2>{{ blog.title }}</h2>
 <br/>
 
 
 <div class="shadow p-3 mb-5 bg-body rounded">
 
-    <h2></h2>
-    <small>By: {{ blog.author }}<br/>
+    
+    <small>By: {{ blog.posting_user.name }}<br/>
     {{ blog.date_posted  }} </small><br/><br/>
-    {{ blog.content }}<br/> {{ blog.id  }}
+    {{ blog.content|safe }}<br/> 
+    <!-- {{ blog.id  }} -->
     
     <br/>
 </div>
 <br/>
 
 <a href="{{ url_for('blogs') }}" class="btn btn-outline-secondary btn-sm">All Blogs</a>
+
+{% if current_user.id == blog.user_id %}
 <a href="{{ url_for('edit_blog', id=blog.id) }}" class="btn btn-outline-secondary btn-sm">Edit Blog</a>
 <a href="{{ url_for('delete_blog', id=blog.id) }}" class="btn btn-outline-danger btn-sm">Delete Blog</a>
-
+{% endif %}
 <br/>
 
 
